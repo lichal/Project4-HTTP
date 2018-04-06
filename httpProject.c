@@ -249,23 +249,24 @@ int main(int argc, char **argv){
         printf("CLient Socket: %d\n", clientsocket[count]);
         
         // Receive a usr name from client
-        char *usrname;
-        usrname=(char *)malloc(sizeof(char*)*5000);
-        char * nameConfirmation=(char *)malloc(sizeof(char*)*5000);
-        strcpy(nameConfirmation,"Username allready taken... Please try again\n");
-        while(1) {
-            strcpy(usrname,"");
-            recv(clientsocket[count],usrname, 5000,0);
-            if(strlen(getName(usrname)) == 0)
-                break;
-            send(clientsocket[count],nameConfirmation,strlen(nameConfirmation)+1,0);
-        }
-        strcpy(nameConfirmation,"Welcome to the Chat Room\n");
-        send(clientsocket[count],nameConfirmation,strlen(nameConfirmation)+1,0);
+        char *initialInfo;
+        initialInfo=(char *)malloc(sizeof(char*)*5000);
+        recv(clientsocket[count],initialInfo, 5000,0);
+//        char * nameConfirmation=(char *)malloc(sizeof(char*)*5000);
+//        strcpy(nameConfirmation,"Username allready taken... Please try again\n");
+//        while(1) {
+//            strcpy(initialInfo,"");
+//            recv(clientsocket[count],initialInfo, 5000,0);
+//            if(strlen(getName(initialInfo)) == 0)
+//                break;
+//            send(clientsocket[count],nameConfirmation,strlen(nameConfirmation)+1,0);
+//        }
+//        strcpy(nameConfirmation,"Welcome to the Chat Room\n");
+//        send(clientsocket[count],nameConfirmation,strlen(nameConfirmation)+1,0);
         
         // store usr name and socket into a struct
         clientList[count].socket=clientsocket[count];
-        clientList[count].name=usrname;
+        clientList[count].name=initialInfo;
         
         // position apart from socket to array
         positionApart=clientsocket[count]-count;

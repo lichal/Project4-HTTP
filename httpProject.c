@@ -1,4 +1,4 @@
-#include <sys/socket.h>
+ #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
@@ -81,19 +81,12 @@ int removeclient(char *clientname){
             if(!match){
                 found=clientList[find].socket;
                 clientList[find].socket = 0;
-                //                struct client blankClient;
-                //                clientList[find] = blankClient;
-                //                memcpy(&clientList[find],&blankClient,sizeof(struct client));
-                //                for(int rmClient = find; rmClient < LIST_SIZE - 1; rmClient++){
-                //                    memcpy(&clientList[rmClient], &clientList[rmClient + 1], sizeof(struct client));
-                //                    memcpy(&clientList[rmClient], &clientList[rmClient + 1], sizeof(struct client));
-                //            }
             }
         }
     }
     return found;
-    
 }
+
 /* Handle receiving operation */
 void * handleclient(void * arg){
     int clientsocket = *(int *)arg;
@@ -198,7 +191,6 @@ void * handleclient(void * arg){
                 printf("Disconnecting....\n\tExit\n");
                 send(clientsocket,chatRecv,strlen(chatRecv)+1,0);
                 close(clientsocket);
-                free(&clientList);
                 exit(0);
             }
             free(chatRecv);
@@ -219,22 +211,87 @@ void * sendchat(void * arg){
     }
 }
 
+int fileRequest(){
+
+	return 1;
+}
+
+/**************************************************
+ * Get the current time in GMT and format the time.
+ *************************************************/
+char* timeRequest(){
+	// Declare Time Variables
+	time_t now;
+	struct tm *timeInfo;
+	char *timeString;
+	char *timeFormat = (char *)malloc(sizeof(char)*37);
+
+	// Current time in GMT
+	time(&now);
+	timeInfo = gmtime(&now);
+	timeString = asctime(timeInfo);
+	
+	/* Time formatting */
+	strcpy(timeFormat, "Date: ");
+	memcpy(&timeFormat[6], &timeString[0], 3);
+	strcat(timeFormat, ",");
+	memcpy(&timeFormat[10], &timeString[7], 3);
+	memcpy(&timeFormat[13], &timeString[3], 4);
+	memcpy(&timeFormat[17], &timeString[19], 5);
+	memcpy(&timeFormat[22], &timeString[10], 9);
+	strcat(timeFormat, " GMT\r\n");
+
+	return timeFormat;
+}
+
+/**************************************************
+ * Construct the status header for HTTP.
+ *************************************************/
+char *statusRequest(char *code, char *type){
+	char *header = (char *)malloc(sizeof(char)*20);
+	strcpy(header, "HTTP/1.1 ");
+	strcat(header, code);
+	strcat(header, " ");
+	strcat(header, type);
+	strcat(header, "\r\n");
+
+	return header;
+}
+
+/**************************************************
+ * Construct the status header for HTTP.
+ *************************************************/
+char *modifiedRequest(char *filename){
+	char *header = (char *)malloc(sizeof(char)*20);
+	strcpy(header, "HTTP/1.1 ");
+	strcat(header, code);
+	strcat(header, " ");
+	strcat(header, type);
+	strcat(header, "\r\n");
+
+	return header;
+}
+
 int main(int argc, char **argv){
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
     
     printf("\nTHIS IS THE TCP CHAT SERVER (Encrpyted)\n");
+
+	printf("%s",statusRequest("200", "OK"));
+	printf("%s",timeRequest());
+	
     
     struct sockaddr_in serveraddr,clientaddr;
     serveraddr.sin_family=AF_INET;
-    serveraddr.sin_port=htons(9876);
+    serveraddr.sin_port=htons(8080);
     serveraddr.sin_addr.s_addr=INADDR_ANY;
     
     bind(sockfd,(struct sockaddr*)&serveraddr,sizeof(serveraddr));
     listen(sockfd,10);
     
-    pthread_t child[LIST_SIZE*2]; // an array of threads, 2 for each client connected
+    pthread_t child[LIST_SIZE]; // an array of threads
     int clientsocket[LIST_SIZE];
-    
+
     printf("\nWaiting for connection from client!\n\nType enter/return to send a message...\n\n");
     
     /******************************************************************************************
@@ -252,17 +309,38 @@ int main(int argc, char **argv){
         char *initialInfo;
         initialInfo=(char *)malloc(sizeof(char*)*5000);
         recv(clientsocket[count],initialInfo, 5000,0);
-//        char * nameConfirmation=(char *)malloc(sizeof(char*)*5000);
-//        strcpy(nameConfirmation,"Username allready taken... Please try again\n");
-//        while(1) {
-//            strcpy(initialInfo,"");
-//            recv(clientsocket[count],initialInfo, 5000,0);
-//            if(strlen(getName(initialInfo)) == 0)
-//                break;
-//            send(clientsocket[count],nameConfirmation,strlen(nameConfirmation)+1,0);
-//        }
-//        strcpy(nameConfirmation,"Welcome to the Chat Room\n");
-//        send(clientsocket[count],nameConfirmation,strlen(nameConfirmation)+1,0);
+        
+        char method[10];
+        int current = 0;
+        int startParsing = 0;
+        while(initialInfo[current] != '/'){
+            method[startParsing] = initialInfo[current];
+            startParsing++;
+            current++;
+        }
+        printf("Method: %s\n", method);
+        current++;
+        
+        char path[50];
+        startParsing = 0;
+        while(initialInfo[current] != ' '){
+            path[startParsing] = initialInfo[current];
+            startParsing++;
+            current++;
+        }
+        printf("File name Parsed %s\n", path);
+        
+        current++;
+        
+        char protocol[10];
+        startParsing = 0;
+        while(initialInfo[current] != '\n'){
+            protocol[startParsing] = initialInfo[current];
+            startParsing++;
+            current++;
+        }
+        
+        printf("Protocol Parsed %s\n", protocol);
         
         // store usr name and socket into a struct
         clientList[count].socket=clientsocket[count];
@@ -270,14 +348,12 @@ int main(int argc, char **argv){
         
         // position apart from socket to array
         positionApart=clientsocket[count]-count;
-        printf("Client connected: %s\n", clientList[count].name);
+        printf("\nHTTP GET REQUEST \n\n%s\n\n", clientList[count].name);
         
         // Create a thread for both send and receive
-        pthread_create(&child[count*2],NULL,handleclient,&clientsocket[count]);
-        pthread_create(&child[count*2+1],NULL,sendchat,&clientsocket[count]);
+        pthread_create(&child[count],NULL,handleclient,&clientsocket[count]);
         // Detach thread after done
-        pthread_detach(child[count*2]);
-        pthread_detach(child[count*2+1]);
+        pthread_detach(child[count]);
         
         // increase count for next connection
         count++;

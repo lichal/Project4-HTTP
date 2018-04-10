@@ -265,11 +265,60 @@ char *modifiedRequest(char *filePath){
 	return lastModified;
 }
 
+/**************************************************
+ * Read file contents
+ *************************************************/
+char *fileRequest(char *filePath){
+	FILE *op = fopen(filePath, "rb");
+	fseek(op, 0, SEEK_END);
+	long fsize = ftell(op);
+	fseek(op, 0, SEEK_SET);
+	char *buffer = (char *)malloc(sizeof(char)*(fsize+4));
+
+	fread(buffer, fsize, 1, op);
+	strcat(buffer, "\r\n");
+	fclose(op);
+	return buffer;
+}
+
+/**************************************************
+ * Content-length header.
+ *************************************************/
+char *lengthRequest(char *filePath){
+	// Open file and read size
+	FILE *op = fopen(filePath, "rb");
+	fseek(op, 0, SEEK_END);
+	int fsize = ftell(op);
+	fseek(op, 0, SEEK_SET);
+
+	char *lengthHeader = (char *)malloc(sizeof(char)*50);
+	// Store size into char
+	char size[10];
+	sprintf(size, "%d", fsize);
+
+	// Construct the header
+	strcpy(lengthHeader, "Content-Length: ");
+	strcat(lengthHeader, size);
+	strcat(lengthHeader, "\r\n");
+	
+	fclose(op);
+	return lengthHeader;
+}
+
+/**************************************************
+ * Return content-type header
+ *************************************************/
+char *typeRequest(char *filePath){
+	char *typeHeader = (char *)malloc(sizeof(char)*(50));
+
+	// Construct the header
+	strcpy(typeHeader, "Content-Type: ");
+}
+
 int main(int argc, char **argv){
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
     
     printf("\nTHIS IS A HTTP SERVER\n");
-
 
 	/**************************
 	 * Header testing
@@ -278,10 +327,17 @@ int main(int argc, char **argv){
 	char *header = statusRequest("200", "OK");
 	char *nowTime = timeRequest();
 	char *modified = modifiedRequest("index.html");
+	char *length = lengthRequest("index.html");
+	
+	char *filebuffer = fileRequest("index.html");
 	strcpy(content, header);
 	strcat(content, nowTime);
 	strcat(content, modified);
+	strcat(content, length);
+	strcat(content, "Content-Type: text/html\r\n");
 	strcat(content, "\r\n");
+	strcat(content, filebuffer);
+	
 	printf("Content \n%s", content);
 	/**************************
 	 * Header testing End
@@ -347,7 +403,7 @@ int main(int argc, char **argv){
         }
         
         printf("Protocol Parsed %s\n", protocol);
-	 
+
 		send(clientsocket[count],content,strlen(content)+1,0);
         
         // store usr name and socket into a struct

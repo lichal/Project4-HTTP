@@ -1,4 +1,4 @@
- #include <sys/socket.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/stat.h>
 #define LIST_SIZE 30
 
 struct client{
@@ -211,39 +212,6 @@ void * sendchat(void * arg){
     }
 }
 
-int fileRequest(){
-
-	return 1;
-}
-
-/**************************************************
- * Get the current time in GMT and format the time.
- *************************************************/
-char* timeRequest(){
-	// Declare Time Variables
-	time_t now;
-	struct tm *timeInfo;
-	char *timeString;
-	char *timeFormat = (char *)malloc(sizeof(char)*37);
-
-	// Current time in GMT
-	time(&now);
-	timeInfo = gmtime(&now);
-	timeString = asctime(timeInfo);
-	
-	/* Time formatting */
-	strcpy(timeFormat, "Date: ");
-	memcpy(&timeFormat[6], &timeString[0], 3);
-	strcat(timeFormat, ",");
-	memcpy(&timeFormat[10], &timeString[7], 3);
-	memcpy(&timeFormat[13], &timeString[3], 4);
-	memcpy(&timeFormat[17], &timeString[19], 5);
-	memcpy(&timeFormat[22], &timeString[10], 9);
-	strcat(timeFormat, " GMT\r\n");
-
-	return timeFormat;
-}
-
 /**************************************************
  * Construct the status header for HTTP.
  *************************************************/
@@ -259,28 +227,66 @@ char *statusRequest(char *code, char *type){
 }
 
 /**************************************************
- * Construct the status header for HTTP.
+ * Get the current time in GMT and format the time.
  *************************************************/
-char *modifiedRequest(char *filename){
-	char *header = (char *)malloc(sizeof(char)*20);
-	strcpy(header, "HTTP/1.1 ");
-	strcat(header, code);
-	strcat(header, " ");
-	strcat(header, type);
-	strcat(header, "\r\n");
+char* timeRequest(){
+	// Declare Time Variables
+	time_t now;
+	char *timeString = (char *)malloc(sizeof(char)*40);
+	char timeFormat[40];
 
-	return header;
+	/* Date Format: Weekday, date month year time GMT. */
+	time(&now);
+	strftime(timeFormat, 40, "%a, %d %b %Y %X GMT\r\n", gmtime(&now));
+	
+	/* Construct Header */
+	strcpy(timeString, "Date: ");
+	strcat(timeString, timeFormat);
+
+	return timeString;
+}
+
+/**************************************************
+ * Construct a Last-Modified header.
+ *************************************************/
+char *modifiedRequest(char *filePath){
+	char *lastModified  = (char *)malloc(sizeof(char)*50);
+	struct stat attr;
+	char dateString[40];
+
+	/* Date Format: Weekday, date month year time GMT. */
+	stat(filePath, &attr);
+	strftime(dateString, 40, "%a, %d %b %Y %X GMT\r\n", gmtime(&attr.st_ctime));
+
+	/* Construct Header */
+	strcpy(lastModified, "Last-Modified: ");
+	strcat(lastModified, dateString);
+	
+	return lastModified;
 }
 
 int main(int argc, char **argv){
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
     
-    printf("\nTHIS IS THE TCP CHAT SERVER (Encrpyted)\n");
+    printf("\nTHIS IS A HTTP SERVER\n");
 
-	printf("%s",statusRequest("200", "OK"));
-	printf("%s",timeRequest());
-	
-    
+
+	/**************************
+	 * Header testing
+	 ***************************/
+    char content[1500];
+	char *header = statusRequest("200", "OK");
+	char *nowTime = timeRequest();
+	char *modified = modifiedRequest("index.html");
+	strcpy(content, header);
+	strcat(content, nowTime);
+	strcat(content, modified);
+	strcat(content, "\r\n");
+	printf("Content \n%s", content);
+	/**************************
+	 * Header testing End
+	 ***************************/
+
     struct sockaddr_in serveraddr,clientaddr;
     serveraddr.sin_family=AF_INET;
     serveraddr.sin_port=htons(8080);
@@ -321,14 +327,14 @@ int main(int argc, char **argv){
         printf("Method: %s\n", method);
         current++;
         
-        char path[50];
+        char name[50];
         startParsing = 0;
         while(initialInfo[current] != ' '){
-            path[startParsing] = initialInfo[current];
+            name[startParsing] = initialInfo[current];
             startParsing++;
             current++;
         }
-        printf("File name Parsed %s\n", path);
+        printf("File name Parsed %s\n", name);
         
         current++;
         
@@ -341,6 +347,8 @@ int main(int argc, char **argv){
         }
         
         printf("Protocol Parsed %s\n", protocol);
+	 
+		send(clientsocket[count],content,strlen(content)+1,0);
         
         // store usr name and socket into a struct
         clientList[count].socket=clientsocket[count];

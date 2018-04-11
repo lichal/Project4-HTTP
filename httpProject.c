@@ -18,6 +18,7 @@ char *fileResponse(char *filePath);
 char *modifiedResponse(char *filePath);
 char* timeResponse();
 char *statusResponse(char *code, char *type);
+char* fileNotFound(char *filename);
 
 struct client{
     int socket;
@@ -48,12 +49,22 @@ void * handleclient(void * arg){
             
             printf("\n\nSecond request \n\n%s\n\n", chatRecv);
             
-            char *filename = parseFile(chatRecv);
-            char *content = httpResponse(filename, "200", "OK");
+            //char *filename = parseFile(chatRecv);
+            //char *content = httpResponse(filename, "200", "OK");
+
+			char *filename;
+        	char *content;
+        	// Initial test response
+        	if(strstr(chatRecv, "GET")){
+            	filename = parseFile(chatRecv);
+            	content = fileNotFound(filename);
+        	}
             
             send(clientsocket,content,strlen(content)+1,0);
 
             free(chatRecv);
+			free(content);
+			free(filename);
         }
     }
 }
@@ -75,7 +86,7 @@ void * sendchat(void * arg){
  * Construct the status header for HTTP.
  *************************************************/
 char *statusResponse(char *code, char *type){
-	char *header = (char *)malloc(sizeof(char)*20);
+	char *header = (char *)malloc(sizeof(char)*30);
 	strcpy(header, "HTTP/1.1 ");
 	strcat(header, code);
 	strcat(header, " ");
@@ -91,12 +102,12 @@ char *statusResponse(char *code, char *type){
 char* timeResponse(){
 	// Declare Time Variables
 	time_t now;
-	char *timeString = (char *)malloc(sizeof(char)*40);
-	char timeFormat[40];
+	char *timeString = (char *)malloc(sizeof(char)*50);
+	char timeFormat[50];
 
 	/* Date Format: Weekday, date month year time GMT. */
 	time(&now);
-	strftime(timeFormat, 40, "%a, %d %b %Y %X GMT\r\n", gmtime(&now));
+	strftime(timeFormat, 50, "%a, %d %b %Y %X GMT\r\n", gmtime(&now));
 	
 	/* Construct Header */
 	strcpy(timeString, "Date: ");
@@ -111,11 +122,11 @@ char* timeResponse(){
 char *modifiedResponse(char *filePath){
 	char *lastModified  = (char *)malloc(sizeof(char)*50);
 	struct stat attr;
-	char dateString[40];
+	char dateString[50];
 
 	/* Date Format: Weekday, date month year time GMT. */
 	stat(filePath, &attr);
-	strftime(dateString, 40, "%a, %d %b %Y %X GMT\r\n", gmtime(&attr.st_ctime));
+	strftime(dateString, 50, "%a, %d %b %Y %X GMT\r\n", gmtime(&attr.st_ctime));
 
 	/* Construct Header */
 	strcpy(lastModified, "Last-Modified: ");
@@ -368,7 +379,8 @@ int main(int argc, char **argv){
         
         send(clientsocket[count],content,strlen(content)+1,0);
         free(content);
-        
+        free(initialInfo);
+		free(filename);
         // Create a thread for both send and receive
         pthread_create(&child[count],NULL,handleclient,&clientsocket[count]);
         // Detach thread after done

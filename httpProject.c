@@ -39,7 +39,7 @@ struct type typePairs[NUM_TYPES];
 /* Handle receiving operation */
 void * handleclient(void * arg){
     int clientsocket = *(int *)arg;
-    printf("Client %d Connected\n",clientList[clientsocket-positionApart].socket);
+    printf("Client %d Connected\n\n",clientList[clientsocket-positionApart].socket);
     
     while (1) {
         char *chatRecv;
@@ -194,7 +194,7 @@ char *typeResponse(char *filename){
     // Read file extention and remove the . off the char pointer.
 	char *extn = strrchr(filename, '.');
     char *removeDot = extn + 1;
-    printf("Extention: %s\n\n", removeDot);
+    // printf("Extention: %s\n\n", removeDot);
 
     // Loop to find the pair of content type
 	int i;
@@ -219,7 +219,7 @@ char *typeResponse(char *filename){
  *************************************************/
 char *httpResponse(char *file, char *code, char *option){
 	/* Content buffe that will hold http response */
-	char *content = (char *)malloc(sizeof(char)*20000);
+	char *content = (char *)malloc(sizeof(char)*30000);
 
 	/* Instantiate char pointer for all headers */
 	char *header = statusResponse(code, option);
@@ -235,6 +235,7 @@ char *httpResponse(char *file, char *code, char *option){
 	strcat(content, modified);
 	strcat(content, length);
 	strcat(content, fileType);
+    //strcat(content, "Connection: close\r\n");
 	strcat(content, "\r\n");
     printf("Response Header:\n%s", content);
 	strcat(content, filebuffer);
@@ -272,7 +273,7 @@ char *parseFile(char *request){
         startParsing++;
         current++;
     }
-    printf("File name Parsed %s\n", name);
+    //printf("File name Parsed %s\n", name);
     
     current++;
     
@@ -294,7 +295,7 @@ char* fileNotFound(char *filename){
     char *content;
     if(op==NULL){
         content = httpResponse(notFound, "404", "Not Found");
-        return notFound;
+        return content;
     }else{
         content = httpResponse(filename, "200", "OK");
     }
@@ -339,7 +340,7 @@ int main(int argc, char **argv){
     while(count<LIST_SIZE){
         int len = sizeof(clientaddr);
         clientsocket[count] = accept(sockfd,(struct sockaddr*)&clientaddr,&len);
-        printf("CLient Socket: %d\n", clientsocket[count]);
+        printf("New CLient Socket: %d\n", clientsocket[count]);
         
         // Receive a usr name from client
         char *initialInfo;
@@ -352,15 +353,21 @@ int main(int argc, char **argv){
         
         // position apart from socket to array
         positionApart=clientsocket[count]-count;
-        printf("\nHTTP GET REQUEST \n\n%s\n\n", clientList[count].name);
-        
+        printf("\t\t\tNEW HTTP GET REQUEST \n\n%s\n", clientList[count].name);
+        char *filename;
+        char *content;
         // Initial test response
-        char *filename = parseFile(initialInfo);
-        char *content = httpResponse(filename, "200", "OK");
+        if(strstr(initialInfo, "GET")){
+            filename = parseFile(initialInfo);
+            content = fileNotFound(filename);
+        }
+        if(strstr(initialInfo, "If-Modified-Since")){
+            
+        }
         //char *content = httpResponse(filename, "200", "OK");
         
         send(clientsocket[count],content,strlen(content)+1,0);
-        //free(content);
+        free(content);
         
         // Create a thread for both send and receive
         pthread_create(&child[count],NULL,handleclient,&clientsocket[count]);

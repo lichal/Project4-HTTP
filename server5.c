@@ -242,7 +242,7 @@ char *httpResponse(char *file, char *code, char *option){
     char *modified = modifiedResponse(file);
     char *length = lengthResponse(file);
     char *fileType = typeResponse(file);
-    char *filebuffer = fileResponse(file);
+    //    char *filebuffer = fileResponse(file);
     
     /* Store all the headers into content buffer */
     strcpy(content, header);
@@ -253,7 +253,7 @@ char *httpResponse(char *file, char *code, char *option){
     //strcat(content, "Connection: close\r\n");
     strcat(content, "\r\n");
     printf("Response Header:\n%s", content);
-    strcat(content, filebuffer);
+    //    strcat(content, filebuffer);
     
     /* Free everything since its all stored in content */
     free(header);
@@ -261,7 +261,7 @@ char *httpResponse(char *file, char *code, char *option){
     free(modified);
     free(length);
     free(fileType);
-    free(filebuffer);
+    //    free(filebuffer);
     
     return content;
 }
@@ -338,7 +338,7 @@ int main(int argc, char **argv){
         if (!strncmp(*(argv + i), "-docroot", 8)){
             strcat(path,*(argv + i + 1));
             printf("Path: %s\n", path);
-
+            
         }
         if (!strncmp(*(argv + i), "-log", 4)){
             char filename[30];
@@ -404,30 +404,61 @@ int main(int argc, char **argv){
         printf("\t\t\tNEW HTTP GET REQUEST \n\n%s\n", clientList[count].name);
         char *filename;
         char *content;
-
+        
         // Initial test response
         if(strstr(initialInfo, "GET")){
             filename = parseFile(initialInfo);
             content = fileNotFound(filename);
         }
         printf("made it here\n");  // didn't make it here!!!
-
+        
         if(strstr(initialInfo, "If-Modified-Since")){
             
         }
         //char *content = httpResponse(filename, "200", "OK");
         
-        send(clientsocket[count],content,strlen(content)+1,0);
+        send(clientsocket[count],content,strlen(content),0);
         if (loggingFile)
             fprintf(logFile,"%s",content);
-        free(content);
-        free(initialInfo);
-        free(filename);
-        // Create a thread for both send and receive
-        pthread_create(&child[count],NULL,handleclient,&clientsocket[count]);
-        // Detach thread after done
-        pthread_detach(child[count]);
-        // increase count for next connection
-        count++;
+        
+        
+        /************************************
+         *Testing method for sending parts of file
+         **************************************/
+        FILE *op = fopen(filename, "rb");
+        fseek(op, 0, SEEK_END);
+        long fsize = ftell(op);
+        fseek(op, 0, SEEK_SET);
+        char *buffer = (char *)malloc(sizeof(char)*(34));
+//        char buffer[50];
+//        strcpy(buffer,"");
+
+        int readFile = 0;
+        while(readFile <= fsize){
+            fread(buffer, 30, 1, op);
+            send(clientsocket[count],buffer,30,0);
+            if (fsize - readFile < 30){
+                fread(buffer, fsize - readFile+1, 1, op);
+                send(clientsocket[count],buffer,strlen(buffer),0);
+                printf("Bytes sent: %d\n",(fsize -readFile));
+            }
+            readFile += 29;
+            printf("Bytes sent: %d\n",readFile);
+//            strcpy(buffer,"");
+        }
+            //strcat(buffer, "\r\n");
+            
+            fclose(op);
+            
+            /****************************************/
+            free(content);
+            free(initialInfo);
+            free(filename);
+            // Create a thread for both send and receive
+            pthread_create(&child[count],NULL,handleclient,&clientsocket[count]);
+            // Detach thread after done
+            pthread_detach(child[count]);
+            // increase count for next connection
+            count++;
+        }
     }
-}

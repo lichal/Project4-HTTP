@@ -20,6 +20,7 @@ char* timeResponse();
 char *statusResponse(char *code, char *type);
 char* fileNotFound(char *filename);
 char* path;
+FILE* logFile;
 
 struct client{
     int socket;
@@ -321,6 +322,7 @@ char* fileNotFound(char *filename){
 
 int main(int argc, char **argv){
     int port = 8080;
+    int loggingFile = 0;
     path = "";
     path = (char*)malloc(5000 * sizeof(char));
     for (int i = 0; i < argc -1; i++) {
@@ -339,9 +341,14 @@ int main(int argc, char **argv){
 
         }
         if (!strncmp(*(argv + i), "-log", 4)){
-            
+            char filename[30];
+            strcat(filename,*(argv + i + 1));
+            logFile = fopen(filename, "w");
+            loggingFile = 1;
+            printf("Storing logs in file: %s\n",filename);
         }
     }
+    
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
     pthread_t child[LIST_SIZE]; // an array of threads
     int clientsocket[LIST_SIZE];
@@ -385,6 +392,8 @@ int main(int argc, char **argv){
         char *initialInfo;
         initialInfo=(char *)malloc(sizeof(char*)*5000);
         recv(clientsocket[count],initialInfo, 5000,0);
+        if (loggingFile)
+            fprintf(logFile,"%s",initialInfo);
         
         // store usr name and socket into a struct
         clientList[count].socket=clientsocket[count];
@@ -409,6 +418,8 @@ int main(int argc, char **argv){
         //char *content = httpResponse(filename, "200", "OK");
         
         send(clientsocket[count],content,strlen(content)+1,0);
+        if (loggingFile)
+            fprintf(logFile,"%s",content);
         free(content);
         free(initialInfo);
         free(filename);

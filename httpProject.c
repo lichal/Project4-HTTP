@@ -42,38 +42,7 @@ struct type{
 /* A global array for cotent type lookup table */
 struct type typePairs[NUM_TYPES];
 
-/* Handle receiving operation */
-void * handleclient(void * arg){
-    int clientsocket = *(int *)arg;
-    printf("Client %d Connected\n\n",clientList[clientsocket-positionApart].socket);
-    
-    while (1) {
-        char *chatRecv;
-        chatRecv = (char *)malloc(sizeof(char*)*5000);
-        if(recv(clientsocket,chatRecv, 5000,0)>0){
-            
-            printf("\n\nSecond request \n\n%s\n\n", chatRecv);
 
-            char *filename;
-            char *content;
-			filename = "";
-			content = "";
-            // Initial test response
-            if(strstr(chatRecv, "GET")){
-                filename = parseFile(chatRecv);
-				content = faviconResponse();
-            }
-			printf("Client %d \n", clientsocket);
-            
-            send(clientsocket,content,strlen(content)+1,0);
-           	sendingFileChunks(filename, clientsocket);
-            
-            free(chatRecv);
-            free(content);
-            free(filename);
-        }
-    }
-}
 /* Handle sending operation */
 void * sendchat(void * arg){
     while (1) {
@@ -359,6 +328,39 @@ void sendingFileChunks(char *filename, int clientsocket){
     }
 	free(buffer);
     fclose(op);
+}
+
+/* Handle receiving operation */
+void * handleclient(void * arg){
+    int clientsocket = *(int *)arg;
+    printf("Client %d Connected\n\n",clientList[clientsocket-positionApart].socket);
+    
+    while (1) {
+        char *chatRecv;
+        chatRecv = (char *)malloc(sizeof(char*)*5000);
+        if(recv(clientsocket,chatRecv, 5000,0)>0){
+            
+            printf("\n\nSecond request \n\n%s\n\n", chatRecv);
+
+            char *filename;
+            char *content;
+			filename = "";
+			content = "";
+            // Initial test response
+            if(strstr(chatRecv, "GET")){
+                filename = parseFile(chatRecv);
+				content = fileNotFound(filename);
+            }
+			printf("Client %d \n", clientsocket);
+            
+            send(clientsocket,content,strlen(content)+1,0);
+           	sendingFileChunks(filename, clientsocket);
+            
+            free(chatRecv);
+            free(content);
+            free(filename);
+        }
+    }
 }
 
 int main(int argc, char **argv){

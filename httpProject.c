@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/stat.h>
-#define LIST_SIZE 30
+#define LIST_SIZE 2000
 #define NUM_TYPES 5
 
 /* Decalre the file name to send in the case of 404 not found */
@@ -167,7 +167,7 @@ void typeTable(){
     /* pdf extention */
     typePairs[3].extention = "pdf";
     typePairs[3].type = "image";
-	/* jpg extention */
+    /* jpg extention */
     typePairs[4].extention = "jpg";
     typePairs[4].type = "image";
 }
@@ -200,7 +200,7 @@ char *typeResponse(char *filename){
     strcat(typeHeader, "/");
     strcat(typeHeader, ext);
     strcat(typeHeader, "\r\n");
-	
+    
     return typeHeader;
 }
 
@@ -248,43 +248,46 @@ char *parseFile(char *request){
     char method[10];
     int current = 0;
     int startParsing = 0;
-
+    
     while(request[current] != '/'){
         method[startParsing] = request[current];
         startParsing++;
         current++;
     }
-//    printf("Method: %s\n", method);
+    //    printf("Method: %s\n", method);
     current++;
-
+    
     startParsing = 0;
     char name[50];
-	int count = 0;
+    int count = 0;
     while(request[current] != ' '){
-		//memcpy(&name[startParsing], &request[current], 1);
+        //memcpy(&name[startParsing], &request[current], 1);
         name[startParsing] = request[current];
-		count++;
+        count++;
         startParsing++;
         current++;
     }
-	char *fileName = malloc(sizeof(char)*50);
-	
-	memcpy(&fileName[0],&name[0],count);
-	fileName[count] = '\0';
-    printf("File name Parsed: %s\n\n", fileName);
-	
-	//char *filePath = (char *)malloc(sizeof(char)*500);
-	//strcpy(filePath, path);
-    //strncat(filePath, fileName, count);  // Adding file name to path
-	//printf("Path %s", filePath);
-    return fileName;
+    char *fileName = malloc(sizeof(char)*50);
+    
+    memcpy(&fileName[0],&name[0],count);
+    fileName[count] = '\0';
+//    printf("File name Parsed: %s\n\n", fileName);
+    
+    char *filePath = (char *)malloc(sizeof(char)*500);
+    strcpy(filePath, path);
+    strncat(filePath, fileName, count);  // Adding file name to path
+    printf("Path %s", filePath);
+    
+    free(fileName);
+    
+    return filePath;
 }
 
 char* fileNotFound(char *filename){
     FILE *op = fopen(filename, "rb");
     char *content;
     if(op==NULL){
-        content = httpResponse("notFound.txt", "404", "Not Found");
+        content = httpResponse("notFound.html", "404", "Not Found");
         printf("file was not found\n"); //
         return content;
     }else{
@@ -301,22 +304,22 @@ void sendingFileChunks(char *filename, int clientsocket){
     FILE *op = fopen(filename, "rb");
     int SIZE = 10000;
     if(op==NULL){
-        op = fopen("notFound.txt", "rb");
-		printf("File not found");
+        op = fopen("notFound.html", "rb");
+        printf("File not found");
     }
     
     fseek(op, 0, SEEK_END);
     long fsize = ftell(op);
     fseek(op, 0, SEEK_SET);
-    char *buffer = malloc(sizeof(char)*SIZE);
+    char *buffer = (char*)malloc(sizeof(char)*SIZE);
     
     int readFile = 0;
     while(readFile <= fsize){
-//        fgets(buffer, SIZE, op);
-		fread(buffer, SIZE, 1, op);
+        //        fgets(buffer, SIZE, op);
+        fread(buffer, SIZE, 1, op);
         send(clientsocket,buffer,SIZE,0);
         if (fsize - readFile < SIZE){
-//            fgets(buffer, fsize - readFile + 1, op);
+            //            fgets(buffer, fsize - readFile + 1, op);
             fread(buffer, fsize - readFile, 1, op);
             send(clientsocket,buffer,fsize -readFile,0);
             printf("Bytes sent: %d\n",(fsize -readFile));
@@ -326,7 +329,7 @@ void sendingFileChunks(char *filename, int clientsocket){
         
         printf("Bytes sent: %d\n",readFile);
     }
-	free(buffer);
+    free(buffer);
     fclose(op);
 }
 
@@ -341,19 +344,19 @@ void * handleclient(void * arg){
         if(recv(clientsocket,chatRecv, 5000,0)>0){
             
             printf("\n\nSecond request \n\n%s\n\n", chatRecv);
-
+            
             char *filename;
             char *content;
-			filename = "";
-			content = "";
+            filename = "";
+            content = "";
             // Initial test response
             if(strstr(chatRecv, "GET")){
                 filename = parseFile(chatRecv);
-				content = fileNotFound(filename);
+                content = fileNotFound(filename);
             }
-			printf("Client %d \n", clientsocket);
+            printf("Client %d \n", clientsocket);
             
-            send(clientsocket,content,strlen(content)+1,0);
+            send(clientsocket,content,strlen(content),0);
            	sendingFileChunks(filename, clientsocket);
             
             free(chatRecv);
@@ -366,9 +369,9 @@ void * handleclient(void * arg){
 int main(int argc, char **argv){
     int port = 8080;
     int loggingFile = 0;
-	path = (char *)malloc(sizeof(char*)*50);
+    path = (char *)malloc(sizeof(char*)*50);
     path = "";
-	int i;
+    int i;
     for (i = 1; i < argc; i++) {
         if (!strncmp(argv[i], "-p", 2)){
             char portString[5];

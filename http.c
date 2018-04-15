@@ -376,6 +376,14 @@ void * handleclient(void * arg){
     }
 }
 
+void send501(int socket){
+    char *response501 = (char *)malloc(sizeof(char*)*500);
+    strcat(response501,"HTTP/1.1 501 Not Implemented\r\n\r\n");
+    send(socket,response501,strlen(response501),0);
+    free(response501);
+    
+}
+
 int main(int argc, char **argv){
     int port = 8080;
     loggingFile = 0;
@@ -464,18 +472,13 @@ int main(int argc, char **argv){
         filename2 = "";
         content = "";
         // Initial test response
+//        send501(clientsocket[count]); //TESTING 501 GET RID OF AFTER!!!
         if(strstr(initialInfo, "GET")){
             filename2 = parseFile(initialInfo);
-            if(!strncmp("favicon.ico",filename2, 11)) {
-                printf("Stupid favicon!!!\n");
-                sendingFile = 0;
-            }
-            else{
-                printf("Not Stupid favicon!!!\n");
                 content = fileNotFound(filename2);
                 sendingFile = 1;
-            }
-        }
+            
+        
         
         if(strstr(initialInfo, "If-Modified-Since")){
             
@@ -499,7 +502,11 @@ int main(int argc, char **argv){
             // Detach thread after done
             pthread_detach(child[count]);
         }
+        }
+        else
+            send501(clientsocket[count]); // sending 501 if not a GET request
         // increase count for next connection
         count++;
     }
 }
+

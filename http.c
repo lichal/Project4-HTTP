@@ -24,6 +24,7 @@ char *statusResponse(char *code, char *type);
 char *fileNotFound(char *filename);
 char *path;
 void sendingFileChunks(char *filename, int clientsocket);
+void send501(int socket);
 FILE* logFile;
 int loggingFile;
 char *logFilename;
@@ -352,36 +353,56 @@ void * handleclient(void * arg){
             filename = "";
             content = "";
             // Initial test response
-            if(strstr(chatRecv, "GET")){
+            if(!strncmp(chatRecv, "GET", 3)){
+                printf("Second get");
                 filename = parseFile(chatRecv);
                 content = fileNotFound(filename);
-            }
-            printf("Client %d \n", clientsocket);
-            logFile = fopen(filename, "w");
-            if (loggingFile) {
+                
+                if(strstr(chatRecv, "If-Modified-Since") != NULL){
+                    
+                }
+                
+                printf("Client %d \n", clientsocket);
+                logFile = fopen(filename, "w");
+                if (loggingFile) {
                     logFile = fopen(logFilename, "a+");
                     fprintf(logFile,"%s",chatRecv);
                     printf("Writing Entry in log file: %s\n",logFilename);
                     fprintf(logFile,"%s",content);
                     fclose(logFile);
+                    
+                }
+                send(clientsocket,content,strlen(content),0);
+                sendingFileChunks(filename, clientsocket);
                 
+                free(chatRecv);
+                free(content);
+                free(filename);
             }
-            send(clientsocket,content,strlen(content),0);
-            sendingFileChunks(filename, clientsocket);
             
-            free(chatRecv);
-            free(content);
-            free(filename);
+            else{
+                printf("\n\n\nSecond Other stuff\n\n\n");
+                send501(clientsocket); // sending 501 if not a GET request
+            }
+            printf("\n\n\nafter else\n\n\n");
+            close(clientsocket);
         }
     }
 }
 
 void send501(int socket){
     char *response501 = (char *)malloc(sizeof(char*)*500);
-    strcat(response501,"HTTP/1.1 501 Not Implemented\r\n\r\n");
+    strcpy(response501,"HTTP/1.1 501 Not Implemented\r\nConnection: close\r\n\r\n");
     send(socket,response501,strlen(response501),0);
-    free(response501);
     
+    if (loggingFile){
+        logFile = fopen(logFilename, "a+");
+        printf("Writing Entry in log file: %s\n",logFilename);
+        fprintf(logFile,"%s",response501);
+        fclose(logFile);
+    }
+    
+    free(response501);
 }
 
 int main(int argc, char **argv){
@@ -473,38 +494,40 @@ int main(int argc, char **argv){
         content = "";
         // Initial test response
 //        send501(clientsocket[count]); //TESTING 501 GET RID OF AFTER!!!
-        if(strstr(initialInfo, "GET")){
+        if(!strncmp(initialInfo, "GET", 3)){
+            printf("A GET");
             filename2 = parseFile(initialInfo);
-                content = fileNotFound(filename2);
-                sendingFile = 1;
+            content = fileNotFound(filename2);
+            sendingFile = 1;
             
-        
-        
-        if(strstr(initialInfo, "If-Modified-Since")){
+            if(strstr(initialInfo, "If-Modified-Since") != NULL){
             
-        }
-        if (sendingFile){
-            send(clientsocket[count],content,strlen(content),0);
-            sendingFileChunks(filename2, clientsocket[count]);
-            /* Writing to the log file... opens file each time, writes then closes */
-            if (loggingFile){
-                logFile = fopen(logFilename, "a+");
-                fprintf(logFile,"%s",initialInfo);
-                printf("Writing Entry in log file: %s\n",logFilename);
-                fprintf(logFile,"%s",content);
-                fclose(logFile);
             }
-            free(content);
-            free(initialInfo);
-            free(filename2);
-            // Create a thread for both send and receive
-            pthread_create(&child[count],NULL,handleclient,&clientsocket[count]);
-            // Detach thread after done
-            pthread_detach(child[count]);
-        }
-        }
-        else
+            if (sendingFile){
+                send(clientsocket[count],content,strlen(content),0);
+                sendingFileChunks(filename2, clientsocket[count]);
+                /* Writing to the log file... opens file each time, writes then closes */
+                if (loggingFile){
+                    logFile = fopen(logFilename, "a+");
+                    fprintf(logFile,"%s",initialInfo);
+                    printf("Writing Entry in log file: %s\n",logFilename);
+                    fprintf(logFile,"%s",content);
+                    fclose(logFile);
+                }
+                free(content);
+                free(initialInfo);
+                free(filename2);
+                // Create a thread for both send and receive
+                pthread_create(&child[count],NULL,handleclient,&clientsocket[count]);
+                // Detach thread after done
+                pthread_detach(child[count]);
+            }
+        }else{
+            printf("Other stuff");
             send501(clientsocket[count]); // sending 501 if not a GET request
+            close(clientsocket[count]);
+        }
+        printf("\n\n\nafter else1\n\n\n");
         // increase count for next connection
         count++;
     }

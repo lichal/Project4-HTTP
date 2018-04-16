@@ -463,7 +463,7 @@ void send501(int socket){
     char *response501 = (char *)malloc(sizeof(char*)*500);
     strcpy(response501,"HTTP/1.1 501 Not Implemented\r\nConnection: close\r\n\r\n");
     send(socket,response501,strlen(response501),0);
-    
+    printf("\n501 Not Found\n%s", response501);
     if (loggingFile){
         logFile = fopen(logFilename, "a+");
         printf("Writing Entry in log file: %s\n",logFilename);
@@ -478,7 +478,7 @@ int main(int argc, char **argv){
     path = (char *)malloc(sizeof(char*)*50);
     logFilename=(char *)malloc(sizeof(char*)*50);
     loggingFile=0;
-
+    
     int i;
     for (i = 1; i < argc; i++) {
         if (!strncmp(argv[i], "-p", 2)){
@@ -609,4 +609,3 @@ int main(int argc, char **argv){
         count++;
     }
 }
-

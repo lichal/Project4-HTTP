@@ -414,9 +414,11 @@ void send501(int socket){
 
 int main(int argc, char **argv){
     int port = 8080;
-    logFilename=(char *)malloc(sizeof(char*)*50);
-    
     path = (char *)malloc(sizeof(char*)*50);
+    logFilename=(char *)malloc(sizeof(char*)*50);
+    loggingFile=0;
+    
+    
     path = "";
     int i;
     for (i = 1; i < argc; i++) {
@@ -435,7 +437,8 @@ int main(int argc, char **argv){
             
         }
         if (!strncmp(*(argv + i), "-log", 4)){
-            strcpy(logFilename,*(argv + i + 1));
+            strcpy(logFilename, path);
+            strcat(logFilename,*(argv + i + 1));
             loggingFile = 1;
             printf("Storing logs in file: %s\n",logFilename);
         }
